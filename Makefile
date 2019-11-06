@@ -1,6 +1,6 @@
 libs_for_unix = -ledit
 libs_for_windows =
-libs =
+libs = -lm
 
 ifeq ($(OS),Windows_NT)
 	libs += $(libs_for_windows)
@@ -9,4 +9,4 @@ else
 endif
 
 all:
-	$(CC) -o byol-lisp main.c $(libs)
+	$(CC) -o byol-lisp main.c mpc.c $(libs)

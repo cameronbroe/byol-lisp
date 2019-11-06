@@ -14,10 +14,35 @@
 static char input[2048]; // 2 KB buffer
 #endif
 
+#include "mpc.h"
+
+
 void __print_version();
 
 int main(int argc, char** argv) {
     __print_version();
+
+    // Create parsers
+    mpc_parser_t* number = mpc_new("number");
+    mpc_parser_t* operator = mpc_new("operator");
+    mpc_parser_t* expr = mpc_new("expr");
+    mpc_parser_t* prog = mpc_new("prog");
+
+    // Define grammar
+    char* polish_grammar = " \
+    number : /-?[0-9]+/ ; \
+    operator : '+' | '-' | '*' | '/' ; \
+    expr : <number> | '(' <operator> <expr>+ ')' ; \
+    prog : /^/ <operator> <expr>+ /$/ ; \
+    ";
+
+    // Define language
+    mpca_lang(MPCA_LANG_DEFAULT,
+            polish_grammar,
+            number,
+            operator,
+            expr,
+            prog);
     while(1) {
 #ifdef _WIN32
         printf("%s> ", PROGRAM_NAME);
@@ -42,6 +67,7 @@ int main(int argc, char** argv) {
         free(input);
 #endif
     }
+    mpc_cleanup(4, number, operator, expr, prog);
     return 0;
 }
 
