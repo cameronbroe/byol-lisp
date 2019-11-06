@@ -23,6 +23,7 @@ int main(int argc, char** argv) {
     __print_version();
 
     // Create parsers
+    mpc_parser_t* cmd = mpc_new("cmd");
     mpc_parser_t* number = mpc_new("number");
     mpc_parser_t* operator = mpc_new("operator");
     mpc_parser_t* expr = mpc_new("expr");
@@ -30,15 +31,18 @@ int main(int argc, char** argv) {
 
     // Define grammar
     char* polish_grammar = " \
+    cmd : /[a-z]+/ ; \
     number : /-?[0-9]+/ ; \
-    operator : '+' | '-' | '*' | '/' ; \
+    operator : '+' | '-' | '*' | '/' | '%' ; \
     expr : <number> | '(' <operator> <expr>+ ')' ; \
-    prog : /^/ <operator> <expr>+ /$/ ; \
+    prog : /^/ <operator> <expr>+ /$/ \
+         | /^/ '!' <cmd> /$/ ; \
     ";
 
     // Define language
     mpca_lang(MPCA_LANG_DEFAULT,
             polish_grammar,
+            cmd,
             number,
             operator,
             expr,
@@ -57,17 +61,21 @@ int main(int argc, char** argv) {
         add_history(input);
 #endif
 
-
-        if(strstr(input, "!quit") != NULL) {
-            break;
+        // Parse the input
+        mpc_result_t result;
+        if(mpc_parse("<stdin>", input, prog, &result)) {
+            mpc_ast_print(result.output);
+            mpc_ast_delete(result.output);
+        } else {
+            mpc_err_print(result.error);
+            mpc_err_delete(result.error);
         }
-        printf("The hell is a %s\n", input);
 
 #ifndef _WIN32
         free(input);
 #endif
     }
-    mpc_cleanup(4, number, operator, expr, prog);
+    mpc_cleanup(5, cmd, number, operator, expr, prog);
     return 0;
 }
 
