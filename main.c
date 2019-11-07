@@ -1,5 +1,6 @@
 #include <stdio.h>
 #include <string.h>
+#include <math.h>
 
 #ifndef _WIN32
 #include <stdlib.h>
@@ -36,7 +37,7 @@ int main(int argc, char** argv) {
     char* polish_grammar = " \
     cmd : /[a-z]+/ ; \
     number : /-?[0-9]+/ ; \
-    operator : '+' | '-' | '*' | '/' | '%' ; \
+    operator : '+' | '-' | '*' | '/' | '%' | '^' | \"min\" | \"max\" ; \
     expr : <number> | '(' <operator> <expr>+ ')' ; \
     prog : /^/ <operator> <expr>+ /$/ \
          | /^/ '!' <cmd> /$/ ; \
@@ -125,6 +126,12 @@ long evaluate_operator(char* operator, long x, long y) {
         return x / y;
     } else if(strcmp(operator, "%") == 0) {
         return x % y;
+    } else if(strcmp(operator, "^") == 0) {
+        return pow(x, y);
+    } else if(strcmp(operator, "min") == 0) {
+        return x < y ? x : y;
+    } else if(strcmp(operator, "max") == 0) {
+        return x > y ? x : y;
     } else {
         return 0;
     }
