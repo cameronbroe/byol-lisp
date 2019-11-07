@@ -7,7 +7,7 @@
 #endif
 
 #define PROGRAM_NAME "byol-lisp"
-#define VERSION "0.0.1.dev"
+#define VERSION "0.0.7-dev"
 
 #ifdef _WIN32
 // Input buffer for REPL
