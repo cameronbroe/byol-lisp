@@ -39,7 +39,7 @@ int main(int argc, char** argv) {
     number : /-?[0-9]+/ ; \
     operator : '+' | '-' | '*' | '/' | '%' | '^' | \"min\" | \"max\" ; \
     expr : <number> | '(' <operator> <expr>+ ')' ; \
-    prog : /^/ <operator> <expr>+ /$/ \
+    prog : /^\\(/ <operator> <expr>+ /\\)$/ \
          | /^/ '!' <cmd> /$/ ; \
     ";
 
