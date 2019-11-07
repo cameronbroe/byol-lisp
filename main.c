@@ -34,18 +34,10 @@ int main(int argc, char** argv) {
     mpc_parser_t* prog = mpc_new("prog");
 
     // Define grammar
-    char* polish_grammar = " \
-    cmd : /[a-z]+/ ; \
-    number : /-?[0-9]+/ ; \
-    operator : '+' | '-' | '*' | '/' | '%' | '^' | \"min\" | \"max\" ; \
-    expr : <number> | '(' <operator> <expr>+ ')' ; \
-    prog : /^\\(/ <operator> <expr>+ /\\)$/ \
-         | /^/ '!' <cmd> /$/ ; \
-    ";
 
     // Define language
-    mpca_lang(MPCA_LANG_DEFAULT,
-            polish_grammar,
+    mpca_lang_contents(MPCA_LANG_DEFAULT,
+            "./grammar.mpc",
             cmd,
             number,
             operator,
