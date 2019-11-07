@@ -18,6 +18,7 @@ static char input[2048]; // 2 KB buffer
 
 
 void __print_version();
+long evaluate_program(mpc_ast_t* node);
 
 int main(int argc, char** argv) {
     __print_version();
@@ -64,7 +65,8 @@ int main(int argc, char** argv) {
         // Parse the input
         mpc_result_t result;
         if(mpc_parse("<stdin>", input, prog, &result)) {
-            mpc_ast_print(result.output);
+            long number_of_nodes = evaluate_program(result.output);
+            printf("Your expression has %ld nodes\n", number_of_nodes);
             mpc_ast_delete(result.output);
         } else {
             mpc_err_print(result.error);
@@ -82,4 +84,19 @@ int main(int argc, char** argv) {
 void __print_version() {
     printf("%s ver. %s\n", PROGRAM_NAME, VERSION);
     printf("Ctrl+C or !quit to Exit\n");
+}
+
+long evaluate_program(mpc_ast_t* node) {
+    printf("tag: %s\ncontents: %s\n\n", node->tag, node->contents);
+    if(node->children_num == 0) {
+        return 1;
+    } else if(node->children_num > 0) {
+        long total = 1;
+        for(int i = 0; i < node->children_num; i++) {
+            total += evaluate_program(node->children[i]);
+        }
+        return total;
+    } else {
+        return 0;
+    }
 }
