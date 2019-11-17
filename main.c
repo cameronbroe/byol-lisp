@@ -16,33 +16,36 @@ static char input[2048]; // 2 KB buffer
 #endif
 
 #include "mpc.h"
+#include "types.h"
 
 
 void __print_version();
-long evaluate_program(mpc_ast_t* node);
-long evaluate_operator(char* operator, long x, long y);
-void evaluate_command(char* cmd);
+lval* evaluate_program(mpc_ast_t* node);
+lval* evaluate_operator(char* operator, lval* x, lval* y);
+lval* evaluate_command(char* cmd);
 
 int main(int argc, char** argv) {
     __print_version();
 
     // Create parsers
-    mpc_parser_t* cmd = mpc_new("cmd");
-    mpc_parser_t* number = mpc_new("number");
-    mpc_parser_t* operator = mpc_new("operator");
-    mpc_parser_t* expr = mpc_new("expr");
-    mpc_parser_t* prog = mpc_new("prog");
+    mpc_parser_t* cmd_p = mpc_new("cmd");
+    mpc_parser_t* number_p = mpc_new("number");
+    mpc_parser_t* symbol_p = mpc_new("symbol");
+    mpc_parser_t* sexpr_p = mpc_new("sexpr");
+    mpc_parser_t* expr_p = mpc_new("expr");
+    mpc_parser_t* prog_p = mpc_new("prog");
 
     // Define grammar
 
     // Define language
     mpca_lang_contents(MPCA_LANG_DEFAULT,
             "./grammar.mpc",
-            cmd,
-            number,
-            operator,
-            expr,
-            prog);
+            cmd_p,
+            number_p,
+            symbol_p,
+            sexpr_p,
+            expr_p,
+            prog_p);
     while(1) {
 #ifdef _WIN32
         printf("%s> ", PROGRAM_NAME);
@@ -59,9 +62,12 @@ int main(int argc, char** argv) {
 
         // Parse the input
         mpc_result_t result;
-        if(mpc_parse("<stdin>", input, prog, &result)) {
-            long output = evaluate_program(result.output);
-            printf("%s = %ld\n", input, output);
+        if(mpc_parse("<stdin>", input, prog_p, &result)) {
+            lval* root = lval_read(result.output);
+            lval_println(root);
+            lval_del(root);
+            /* lval output = evaluate_program(result.output); */
+            /* lval_println(output); */
             mpc_ast_delete(result.output);
         } else {
             mpc_err_print(result.error);
@@ -72,7 +78,7 @@ int main(int argc, char** argv) {
         free(input);
 #endif
     }
-    mpc_cleanup(5, cmd, number, operator, expr, prog);
+    mpc_cleanup(5, cmd_p, number_p, symbol_p, sexpr_p, expr_p, prog_p);
     return 0;
 }
 
@@ -81,23 +87,24 @@ void __print_version() {
     printf("Ctrl+C or !quit to Exit\n");
 }
 
-long evaluate_program(mpc_ast_t* node) {
+lval* evaluate_program(mpc_ast_t* node) {
     // Implement commands
     if(strstr(node->tag, "cmd") != NULL) {
-        evaluate_command(node->contents);
-        return 0;
+        return evaluate_command(node->contents);
     }
 
     // Numbers should just be converted
     if(strstr(node->tag, "number") != NULL) {
-        return atol(node->contents);
+        errno = 0;
+        long num = strtol(node->contents, NULL, 10);
+        return errno != ERANGE ? lval_num(num) : lval_err("bad number");
     }
 
     // Check operator in second child
     char* operator = node->children[1]->contents;
 
     // Next child is an expression, evaluate it and store it in a variable
-    long x = evaluate_program(node->children[2]);
+    lval* x = evaluate_program(node->children[2]);
 
     // Iterate the rest of the expressions
     for(int i = 3; strstr(node->children[i]->tag, "expr") != NULL; i++) {
@@ -107,30 +114,49 @@ long evaluate_program(mpc_ast_t* node) {
     return x;
 }
 
-long evaluate_operator(char* operator, long x, long y) {
-    if(strcmp(operator, "+") == 0) {
-        return x + y;
-    } else if(strcmp(operator, "-") == 0) {
-        return x - y;
-    } else if(strcmp(operator, "*") == 0) {
-        return x * y;
-    } else if(strcmp(operator, "/") == 0) {
-        return x / y;
-    } else if(strcmp(operator, "%") == 0) {
-        return x % y;
-    } else if(strcmp(operator, "^") == 0) {
-        return pow(x, y);
-    } else if(strcmp(operator, "min") == 0) {
-        return x < y ? x : y;
-    } else if(strcmp(operator, "max") == 0) {
-        return x > y ? x : y;
-    } else {
-        return 0;
+lval* evaluate_operator(char* operator, lval* x, lval* y) {
+    lval* return_value = lval_err("bad operator");
+
+    // If a value is an err, just return it
+    if(x->type == LVAL_ERR) {
+        return_value = x;
+        goto force_return;
     }
+    if(y->type == LVAL_ERR) {
+        return_value = y;
+        goto force_return;
+    }
+
+    if(strcmp(operator, "+") == 0) {
+        return_value = lval_num(x->num + y->num);
+    } else if(strcmp(operator, "-") == 0) {
+        return_value = lval_num(x->num - y->num);
+    } else if(strcmp(operator, "*") == 0) {
+        return_value = lval_num(x->num * y->num);
+    } else if(strcmp(operator, "/") == 0) {
+        if(y->num == 0) {
+           return_value = lval_err("can't divide by zero");
+        } else {
+           return_value = lval_num(x->num / y->num);
+        }
+    } else if(strcmp(operator, "%") == 0) {
+        return_value = lval_num(x->num % y->num);
+    } else if(strcmp(operator, "^") == 0) {
+        return_value = lval_num(pow(x->num, y->num));
+    } else if(strcmp(operator, "min") == 0) {
+        return_value = x->num < y->num ? x : y;
+    } else if(strcmp(operator, "max") == 0) {
+        return_value = x->num > y->num ? x : y;
+    }
+
+force_return:
+    return return_value;
 }
 
-void evaluate_command(char* cmd) {
+lval* evaluate_command(char* cmd) {
     if(strcmp(cmd, "quit") == 0) {
         exit(0);
+        return lval_void();
     }
+    return lval_err("bad command");
 }
