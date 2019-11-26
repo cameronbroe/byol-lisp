@@ -9,4 +9,4 @@ else
 endif
 
 all:
-	$(CC) -g -o byol-lisp main.c mpc.c types.c $(libs)
+	$(CC) -g -o byol-lisp main.c mpc.c types.c evaluators.c $(libs)
